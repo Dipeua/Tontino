@@ -5,11 +5,15 @@ Application de bureau 100 % locale (CustomTkinter), refondue autour d'une idée
 simple : à tout moment on voit clairement QUI BOUFFE MAINTENANT et QUI SERA LE
 PROCHAIN à la séance suivante.
 
-Logique de rotation
--------------------
-- Les membres ont un ordre de passage (modifiable avec ↑ ↓).
-- « Bouffe maintenant » = le 1er membre (dans l'ordre) qui n'a pas encore bouffé.
-- « Prochain »          = le 2e membre (dans l'ordre) qui n'a pas encore bouffé.
+Deux modes d'ordre de passage (Réglages)
+-----------------------------------------
+- « Ordre fixe »      : l'ordre des membres (modifiable avec ↑ ↓) décide qui bouffe.
+- « Tirage au sort »  : un bouton 🎲 mélange au hasard l'ordre des membres qui
+  n'ont pas encore bouffé (les bénéficiaires passés gardent leur place).
+
+Dans les deux cas :
+- « Bouffe maintenant » = le 1er membre qui n'a pas encore bouffé.
+- « Prochain »          = le 2e membre qui n'a pas encore bouffé.
 - Valider une séance fait bouffer le bénéficiaire choisi (par défaut celui qui
   « bouffe maintenant »), encaisse les pénalités dans la caisse, puis tout
   avance automatiquement.
@@ -23,6 +27,7 @@ Lancer :  python tontino.py
 
 import json
 import os
+import random
 import re
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
@@ -88,6 +93,7 @@ class TontinoApp(ctk.CTk):
         self.nom_tontine = "Ma tontine"
         self.cotisation = COTISATION_DEFAUT
         self.penalites = dict(PENALITES_DEFAUT)
+        self.mode = "fixe"        # "fixe" (ordre de passage) ou "tirage" (au sort)
         self.tour = 1
         self.cycle = 1
         self.caisse = 0
@@ -193,9 +199,15 @@ class TontinoApp(ctk.CTk):
         self.cur_sub = ctk.CTkLabel(cur, text="", text_color=(GREEN_D, "#bbf7d0"),
                                     font=ctk.CTkFont(size=12))
         self.cur_sub.pack(anchor="w", padx=18, pady=(0, 8))
-        ctk.CTkButton(cur, text="✓  Valider la séance (il a bouffé)",
+        cur_btns = ctk.CTkFrame(cur, fg_color="transparent")
+        cur_btns.pack(anchor="w", padx=18, pady=(0, 16), fill="x")
+        ctk.CTkButton(cur_btns, text="✓  Valider la séance",
                       command=self._valider_seance, fg_color=GREEN, hover_color=GREEN_D,
-                      height=36).pack(anchor="w", padx=18, pady=(0, 16))
+                      height=36).pack(side="left")
+        self.btn_tirage = ctk.CTkButton(cur_btns, text="🎲  Tirer au sort",
+                                        command=self._tirer, fg_color=AMBER,
+                                        hover_color=AMBER_D, height=36)
+        # affiché seulement en mode tirage (géré dans _refresh)
 
         nxt = ctk.CTkFrame(spot, fg_color=NEXT_BG, corner_radius=16)
         nxt.grid(row=0, column=1, sticky="ew", padx=(8, 0))
@@ -522,6 +534,27 @@ class TontinoApp(ctk.CTk):
                                     "Tout le monde a bouffé une fois !\nLancez un « Nouveau cycle ».")
         self._dialog_buttons(f, dlg, ok, "✓  Valider", GREEN, GREEN_D)
 
+    def _tirer(self):
+        """Tire au sort l'ordre de passage des membres qui n'ont pas encore bouffé."""
+        idx = [i for i, m in enumerate(self.membres) if not m["recu"]]
+        if len(idx) < 2:
+            self._status("Pas assez de membres à tirer au sort.", AMBER)
+            return
+        if not messagebox.askyesno(
+                "Tirage au sort",
+                "Tirer au sort l'ordre de passage des membres qui n'ont pas encore bouffé ?\n\n"
+                "« Bouffe maintenant » et « Prochain » seront redéfinis au hasard."):
+            return
+        restants = [self.membres[i] for i in idx]
+        random.shuffle(restants)
+        for pos, i in enumerate(idx):
+            self.membres[i] = restants[pos]
+        self._save()
+        self._refresh()
+        cur = self._courant()
+        self._status(f"🎲 Tirage effectué — {cur['nom']} bouffe cette séance." if cur
+                     else "Tirage effectué.", GREEN)
+
     def _nouveau_cycle(self):
         if not self.membres:
             return
@@ -564,7 +597,7 @@ class TontinoApp(ctk.CTk):
                       hover_color=hover, width=140).pack(side="right")
 
     def _parametres(self):
-        dlg, f = self._dialog("Réglages de la tontine", 460, 470)
+        dlg, f = self._dialog("Réglages de la tontine", 460, 560)
         ctk.CTkLabel(f, text="⚙  Réglages", font=ctk.CTkFont(size=16, weight="bold")).pack(
             anchor="w", pady=(0, 14))
         nv = tk.StringVar(value=self.nom_tontine)
@@ -574,6 +607,12 @@ class TontinoApp(ctk.CTk):
         ctk.CTkLabel(f, text="Cotisation par membre / séance (FCFA)",
                      text_color=("gray40", "gray70")).pack(anchor="w")
         ctk.CTkEntry(f, textvariable=cv, height=36).pack(fill="x", pady=(2, 12))
+
+        ctk.CTkLabel(f, text="Ordre de passage (qui bouffe)",
+                     text_color=("gray40", "gray70")).pack(anchor="w")
+        mode_seg = ctk.CTkSegmentedButton(f, values=["Ordre fixe", "Tirage au sort"])
+        mode_seg.set("Tirage au sort" if self.mode == "tirage" else "Ordre fixe")
+        mode_seg.pack(fill="x", pady=(2, 12))
         ctk.CTkLabel(f, text="Pénalités (→ caisse)",
                      font=ctk.CTkFont(weight="bold")).pack(anchor="w", pady=(2, 6))
         pv = {}
@@ -592,6 +631,7 @@ class TontinoApp(ctk.CTk):
         def ok():
             self.nom_tontine = nv.get().strip() or "Ma tontine"
             self.cotisation = to_int(cv.get())
+            self.mode = "tirage" if mode_seg.get() == "Tirage au sort" else "fixe"
             for k, v in pv.items():
                 self.penalites[k] = to_int(v.get())
             self._save()
@@ -779,7 +819,13 @@ class TontinoApp(ctk.CTk):
         nb_recu = sum(1 for m in self.membres if m["recu"])
         cur, nxt = self._courant(), self._prochain()
 
-        self.sub_lbl.configure(text=f"{self.nom_tontine}  ·  cotisation {fmt_money(self.cotisation)} / membre")
+        mode_txt = "🎲 tirage au sort" if self.mode == "tirage" else "ordre fixe"
+        self.sub_lbl.configure(
+            text=f"{self.nom_tontine}  ·  cotisation {fmt_money(self.cotisation)} / membre  ·  {mode_txt}")
+        if self.mode == "tirage":
+            self.btn_tirage.pack(side="left", padx=(8, 0))
+        else:
+            self.btn_tirage.pack_forget()
         self.cur_name.configure(text=cur["nom"] if cur else ("— aucun membre —" if not n else "Cycle terminé 🎉"))
         self.cur_sub.configure(text=f"reçoit {fmt_money(cagnotte)}" if cur else "")
         self.next_name.configure(text=nxt["nom"] if nxt else "—")
@@ -829,6 +875,7 @@ class TontinoApp(ctk.CTk):
             return
         self.nom_tontine = str(d.get("nom", "Ma tontine"))
         self.cotisation = self._int(d.get("cotisation", COTISATION_DEFAUT), COTISATION_DEFAUT)
+        self.mode = "tirage" if d.get("mode") == "tirage" else "fixe"
         self.tour = max(1, self._int(d.get("tour", 1), 1))
         self.cycle = max(1, self._int(d.get("cycle", 1), 1))
         self.caisse = self._int(d.get("caisse", 0), 0)
@@ -851,8 +898,9 @@ class TontinoApp(ctk.CTk):
 
     def _save(self):
         data = {"nom": self.nom_tontine, "cotisation": self.cotisation,
-                "penalites": self.penalites, "tour": self.tour, "cycle": self.cycle,
-                "caisse": self.caisse, "membres": self.membres, "historique": self.historique}
+                "penalites": self.penalites, "mode": self.mode, "tour": self.tour,
+                "cycle": self.cycle, "caisse": self.caisse, "membres": self.membres,
+                "historique": self.historique}
         try:
             with open(DATA_FILE, "w", encoding="utf-8") as fp:
                 json.dump(data, fp, ensure_ascii=False, indent=2)
