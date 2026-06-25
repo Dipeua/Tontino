@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tontino-Web — Gestion de tontines</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="app">
+    <!-- En-tête -->
+    <header class="topbar">
+      <div class="brand">
+        <h1>🤝 Tontino<span class="pro">Web</span></h1>
+        <div id="subtitle" class="subtitle"></div>
+      </div>
+      <div class="top-actions">
+        <button id="themeBtn" class="btn icon" title="Thème clair / sombre">☀</button>
+        <button id="settingsBtn" class="btn slate">⚙ Réglages</button>
+      </div>
+    </header>
+
+    <!-- Cartes vedettes -->
+    <section class="spotlight">
+      <div class="card primary-card">
+        <div id="curLabel" class="card-label"></div>
+        <div id="curValue" class="card-value">—</div>
+        <div id="curSub" class="card-sub"></div>
+        <div class="card-btns">
+          <button id="btnPrimary" class="btn ok">✓ Valider</button>
+          <button id="btnDraw" class="btn amber" style="display:none">🎲 Tirer au sort</button>
+          <button id="btnExtra" class="btn primary" style="display:none">Action</button>
+        </div>
+      </div>
+      <div class="card secondary-card">
+        <div id="nxtLabel" class="card-label"></div>
+        <div id="nxtValue" class="card-value">—</div>
+        <div id="nxtSub" class="card-sub"></div>
+      </div>
+    </section>
+
+    <!-- Stats -->
+    <section id="stats" class="stats"></section>
+
+    <!-- Ajout de membre -->
+    <section class="form">
+      <input id="nomInput" class="in" placeholder="Nom du membre" />
+      <input id="telInput" class="in" placeholder="Téléphone (optionnel)" />
+      <button id="addBtn" class="btn primary">＋ Ajouter</button>
+    </section>
+
+    <!-- Barre d'actions -->
+    <section class="actions">
+      <div class="left">
+        <button id="btnPointage" class="btn ok">📝 Pointer</button>
+        <button id="btnEdit" class="btn cyan">✏ Modifier</button>
+        <button id="btnUp" class="btn slate sq">↑</button>
+        <button id="btnDown" class="btn slate sq">↓</button>
+        <button id="btnDel" class="btn danger">🗑 Retirer</button>
+      </div>
+      <div class="right">
+        <button id="btnHistory" class="btn slate">📜 Historique</button>
+        <button id="btnCycle" class="btn amber">🔄 Nouveau cycle</button>
+        <button id="btnExport" class="btn slate">💾 Exporter</button>
+        <label class="btn slate file-btn">📂 Importer
+          <input id="importFile" type="file" accept="application/json" hidden />
+        </label>
+        <button id="btnPdf" class="btn sky">⬇ PDF</button>
+      </div>
+    </section>
+
+    <!-- Tableau -->
+    <section class="table-wrap">
+      <table class="grid">
+        <thead>
+          <tr>
+            <th class="c">#</th><th>Membre</th><th>Téléphone</th>
+            <th id="hStatut">Statut</th><th id="hInfo1" class="c">Cotisation</th>
+            <th id="hInfo2" class="num">Pénalités</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </section>
+
+    <div id="status" class="status">Prêt.</div>
+  </div>
+
+  <div id="modal-root"></div>
+  <div id="print-root"></div>
+
+  <script src="js/utils.js"></script>
+  <script src="js/model.js"></script>
+  <script src="js/engines.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/print.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
